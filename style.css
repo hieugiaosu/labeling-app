@@ -3,6 +3,7 @@
   --accent: #2f5fd0; --accent-soft: #e9effc; --good: #1f8a4c; --bad: #c0392b;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* the hidden attribute wins over any display rule (the modal is flex) */
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;
   border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 2; }
