@@ -52,6 +52,10 @@ code { background: var(--bg); padding: 1px 4px; border-radius: 4px; }
 .sample { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 12px; }
 .tag { display: inline-block; font-size: 12px; background: var(--bg); border-radius: 4px; padding: 0 5px; margin-right: 3px; }
 .tag.off { background: #fde2df; color: var(--bad); }
+.player audio { display: block; width: 100%; max-width: 480px; margin: 6px 0; }
+.variants { max-height: 45vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; margin: 6px 0 10px; }
+.variant { padding: 6px 0; border-bottom: 1px solid var(--line); } .variant:last-child { border-bottom: 0; }
+.variant .situation, .sample .situation { font-size: 13px; margin: 4px 0; }
 .tabs { display: flex; gap: 4px; margin-top: 14px; border-bottom: 1px solid var(--line); }
 .tabs button { background: none; color: var(--muted); border-radius: 7px 7px 0 0; padding: 7px 14px; }
 .tabs button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }

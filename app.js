@@ -265,7 +265,11 @@ async function openEdit(benchId) {
   $("edit-box").innerHTML = `<div class="edit">
     <div class="row between"><h3>${esc(benchId)} <small>${esc(sc.section)} - ${sc.items} variants</small></h3>
       <button class="link" id="edit-close">Close</button></div>
-    ${sc.example ? `<p class="hint">Example (${esc(sc.example.sample_id)}): ${esc(sc.example.situation)}</p>` : ""}
+    <details open><summary>Listen to the variants (${(sc.variants || []).length})</summary>
+      <div class="variants">${(sc.variants || []).map((v) => `<div class="variant">
+        <b>${esc(v.sample_id)}</b> <small>${v.answers} answer(s)</small> ${listenButton(v.audio_path)}
+        <details><summary>situation</summary><p class="situation">${esc(v.situation)}</p></details></div>`).join("")}</div>
+    </details>
     <div class="grid">${POLICIES.map((p) => `<label>${p}<select data-pol="${p}">` +
       LEVELS[p].map((l) => `<option ${sc.labels[p] === l ? "selected" : ""}>${l}</option>`).join("") +
       `</select><small class="hint">original: ${esc(orig[p])}</small></label>`).join("")}</div>
@@ -274,6 +278,7 @@ async function openEdit(benchId) {
       ${sc.override ? '<button class="secondary" id="edit-undo">Back to original</button>' : ""}
       <span id="edit-msg" class="msg"></span></div></div>`;
   $("edit-close").onclick = closeEdit;
+  wireListen($("edit-box"));
   $("edit-save").onclick = async () => {
     const labels = {};
     document.querySelectorAll("#edit-box select").forEach((s) => (labels[s.dataset.pol] = s.value));
@@ -287,9 +292,26 @@ async function openEdit(benchId) {
     catch (e) { $("edit-msg").textContent = e.message; }
   };
 }
-function closeEdit() { $("edit-modal").hidden = true; }
+function closeEdit() { $("edit-modal").hidden = true; document.querySelectorAll("#edit-box audio").forEach((a) => a.pause()); }
 $("edit-modal").addEventListener("click", (e) => { if (e.target === $("edit-modal")) closeEdit(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeEdit(); });
+
+// --- listening from the admin page: audio loads only when asked -------------------------------------
+function listenButton(path) {
+  return path ? `<button class="link" data-listen="${esc(path)}">&#9654; Listen</button><span class="player"></span>` : "";
+}
+function wireListen(root) {
+  root.querySelectorAll("[data-listen]").forEach((b) => (b.onclick = async () => {
+    const slot = b.nextElementSibling;
+    if (slot.querySelector("audio")) { slot.innerHTML = ""; return; }      // second click closes it
+    document.querySelectorAll(".player audio").forEach((a) => a.pause());
+    busy(true);
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(b.dataset.listen, 3600);
+    busy(false);
+    slot.innerHTML = error ? `<span class="msg">${esc(error.message)}</span>`
+      : `<audio controls autoplay src="${esc(data.signedUrl)}"></audio>`;
+  }));
+}
 
 // --- admin tabs ------------------------------------------------------------------------------------
 function openTab(name) {
@@ -336,9 +358,11 @@ async function explore(filter) {
         missed: (a.missed_key || []).join("; ") || "-", sec: a.seconds, audio: a.current_audio ? "current" : "OLD",
       })), [["user", "user"], ["mode", "mode"], ["reply", "reply (* = benchmark)"], ["labels", "reply means"],
             ["delivery", "delivery"], ["heard", "ticked sounds"], ["missed", "key sound missed"], ["sec", "sec"], ["audio", "audio"]]);
-      return `<div class="sample"><b>${esc(sid)}</b> <small>${esc(ans[0].section)}</small>
+      return `<div class="sample"><b>${esc(sid)}</b> <small>${esc(ans[0].section)}</small> ${listenButton(ans[0].audio_path)}
+        <details><summary>situation (text version)</summary><p class="situation">${esc(ans[0].situation)}</p></details>
         <div>benchmark: ${tags(truth)} delivery <span class="tag">${esc(truth.delivery)}</span></div>${majority}${list}</div>`;
     }).join("");
+  wireListen($("explorer"));
 }
 $("btn-explore").onclick = () => explore($("ex-filter").value.trim());
 $("ex-filter").addEventListener("keydown", (e) => { if (e.key === "Enter") explore($("ex-filter").value.trim()); });
