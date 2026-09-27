@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AAC-Bench listening study</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">AAC-Bench <span>listening study</span></div>
+  <div id="who" hidden><span id="who-name"></span> <button class="link" id="logout">Log out</button></div>
+</header>
+
+<main>
+  <!-- Login -->
+  <section id="view-login" class="card narrow" hidden>
+    <h1>Welcome</h1>
+    <p>You will listen to short recordings of someone talking to a voice assistant, and choose what the assistant
+      should do. Pick a username: register once, then log in with the same name to continue where you left off.</p>
+    <label for="username">Username</label>
+    <input id="username" autocomplete="username" maxlength="32" placeholder="e.g. alex_n">
+    <div class="row">
+      <button id="btn-login">Log in</button>
+      <button id="btn-register" class="secondary">Register new</button>
+    </div>
+    <p id="login-msg" class="msg"></p>
+    <details id="admin-login">
+      <summary>Admin</summary>
+      <label for="admin-pw">Admin password</label>
+      <input id="admin-pw" type="password" autocomplete="current-password">
+      <div class="row"><button id="btn-admin" class="secondary">Open admin page</button></div>
+      <p id="admin-msg" class="msg"></p>
+    </details>
+  </section>
+
+  <!-- Home -->
+  <section id="view-home" class="card" hidden>
+    <h1>Your progress</h1>
+    <div class="stats">
+      <div><b id="p-audio">0</b><span>audio items done</span></div>
+      <div><b id="p-text">0</b><span>text items done</span></div>
+      <div><b id="p-total">0</b><span>items in the study</span></div>
+    </div>
+    <p>A batch is 20 items picked for you. You can stop any time; an unfinished batch is kept for you.</p>
+    <div class="row">
+      <button id="btn-audio">Audio batch</button>
+      <button id="btn-text" class="secondary">Text batch</button>
+    </div>
+    <details>
+      <summary>How it works</summary>
+      <ul>
+        <li><b>Audio batch</b>: play the recording (headphones help). Someone - "the user" - asks a voice assistant
+          something while things happen around them. Tick every sound you can hear, then choose the reply that
+          would be most appropriate, and how loudly it should be spoken.</li>
+        <li><b>Text batch</b>: the same kind of situation is described in words instead. Choose the reply and the
+          volume as if you were the assistant.</li>
+        <li>There is no trick: pick what a thoughtful assistant should really do in that moment. "Say nothing" is a
+          valid choice.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- Task -->
+  <section id="view-task" class="card" hidden>
+    <div class="task-head">
+      <span id="t-mode" class="pill"></span>
+      <span id="t-pos"></span>
+      <div class="bar"><div id="t-bar"></div></div>
+    </div>
+
+    <div id="t-audio-block">
+      <audio id="t-audio" controls preload="auto"></audio>
+      <p class="hint" id="t-audio-hint">Play the recording (at least once) before answering. You can replay it.</p>
+    </div>
+    <div id="t-text-block" hidden>
+      <h2>Situation</h2>
+      <p id="t-situation" class="situation"></p>
+    </div>
+
+    <div id="q-sounds" class="q">
+      <h2>1. Which of these can you hear? <small>(tick all that apply)</small></h2>
+      <div id="t-sounds" class="options"></div>
+      <label class="opt none"><input type="checkbox" id="t-none"> <span>None of these</span></label>
+    </div>
+
+    <div class="q">
+      <h2><span id="q2-num">2</span>. You are the voice assistant. Which reply is the most appropriate right now?</h2>
+      <div id="t-replies" class="options"></div>
+    </div>
+
+    <div class="q">
+      <h2><span id="q3-num">3</span>. How should the assistant say its reply?</h2>
+      <div id="t-delivery" class="options inline"></div>
+    </div>
+
+    <div class="row end">
+      <span id="t-msg" class="msg"></span>
+      <button id="btn-submit" disabled>Submit &amp; next</button>
+    </div>
+  </section>
+
+  <!-- Batch finished -->
+  <section id="view-done" class="card narrow" hidden>
+    <h1>Batch done - thank you!</h1>
+    <p id="done-msg"></p>
+    <div class="row">
+      <button id="btn-next">Next batch</button>
+      <button id="btn-home" class="secondary">Back to start</button>
+    </div>
+  </section>
+
+  <!-- Admin -->
+  <section id="view-admin" hidden>
+    <div class="card">
+      <div class="row between">
+        <h1>Admin - results</h1>
+        <div class="row">
+          <button id="btn-refresh" class="secondary">Refresh</button>
+          <button id="btn-export">Download answers (CSV)</button>
+        </div>
+      </div>
+      <div id="admin-coverage" class="stats"></div>
+      <nav class="tabs">
+        <button data-tab="overview" class="on">Overview</button>
+        <button data-tab="contested">Contested</button>
+        <button data-tab="answers">Answers</button>
+        <button data-tab="details">Details</button>
+      </nav>
+    </div>
+    <div id="tab-overview" class="tab"></div>
+    <div id="tab-contested" class="tab card" hidden>
+      <div class="row between">
+        <h2>Contested scenarios</h2>
+        <div class="row">
+          <input id="edit-id" placeholder="Scenario id, e.g. INH-19" style="width: 220px">
+          <button id="btn-edit-any" class="secondary">Edit labels</button>
+        </div>
+      </div>
+      <p class="hint">Per scenario and policy: share of answers that chose another level than the benchmark label, and the
+        level most people chose. High disagreement = the label may be wrong. "Edit labels" changes the label of every variant
+        of the scenario (stats update at once); <code>bash pull_labels.sh</code> brings the changes into
+        <code>aac_bench_scenarios.jsonl</code>.</p>
+      <div id="admin-contested"></div>
+    </div>
+    <div id="tab-answers" class="tab card" hidden>
+      <div class="row between">
+        <h2>Answers explorer</h2>
+        <div class="row">
+          <input id="ex-filter" placeholder="sample (INI-02_v00), scenario (INH-19) or username" style="width: 320px">
+          <button id="btn-explore" class="secondary">Show</button>
+        </div>
+      </div>
+      <p class="hint">Who answered what, per sample: the reply most people chose (per mode) against the benchmark label,
+        then every answer. Leave empty for all.</p>
+      <div id="explorer"></div>
+    </div>
+    <div id="tab-details" class="tab" hidden></div>
+    <div id="edit-modal" class="modal" hidden><div class="modal-card" id="edit-box"></div></div>
+  </section>
+</main>
+
+<div id="loading" hidden>Loading...</div>
+<script src="app.js"></script>
+</body>
+</html>
