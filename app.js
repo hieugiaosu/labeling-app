@@ -7,7 +7,12 @@ const BATCH = cfg.batchSize || 20;
 
 const $ = (id) => document.getElementById(id);
 const views = ["login", "home", "task", "done", "admin"];
-const state = { user: null, admin: null, mode: null, items: [], pos: 0, total: 0, started: 0, played: false };
+// Audio only: the text mode was dropped. Policies hidden for now (same list as _hidden_policies() in
+// label_app.sql): the server already leaves their reply options and items out; here they are not displayed,
+// and label editing keeps their current value.
+const MODE = "audio";
+const HIDDEN = ["risk"];
+const state = { user: null, admin: null, items: [], pos: 0, total: 0, started: 0, played: false };
 
 function show(name) {
   views.forEach((v) => ($("view-" + v).hidden = v !== name));
@@ -62,21 +67,18 @@ async function openHome() {
   show("home");
   const p = await rpc("my_progress", { p_username: state.user });
   $("p-audio").textContent = p.audio_done;
-  $("p-text").textContent = p.text_done;
   $("p-total").textContent = p.total_items;
-  $("btn-audio").textContent = p.audio_open ? `Continue audio batch (${p.audio_open} left)` : `New audio batch (${BATCH})`;
-  $("btn-text").textContent = p.text_open ? `Continue text batch (${p.text_open} left)` : `New text batch (${BATCH})`;
+  $("btn-audio").textContent = p.audio_open ? `Continue batch (${p.audio_open} left)` : `New batch (${BATCH})`;
 }
-$("btn-audio").onclick = () => startBatch("audio");
-$("btn-text").onclick = () => startBatch("text");
+$("btn-audio").onclick = () => startBatch();
 $("btn-home").onclick = () => openHome();
-$("btn-next").onclick = () => startBatch(state.mode);
+$("btn-next").onclick = () => startBatch();
 
-async function startBatch(mode) {
+async function startBatch() {
   try {
-    const items = await rpc("next_batch", { p_username: state.user, p_mode: mode, p_size: BATCH });
-    if (!items.length) { alert("Nothing left to label in this mode - thank you!"); return; }
-    Object.assign(state, { mode, items, pos: 0, total: items.length });
+    const items = await rpc("next_batch", { p_username: state.user, p_mode: MODE, p_size: BATCH });
+    if (!items.length) { alert("Nothing left to label - thank you!"); return; }
+    Object.assign(state, { items, pos: 0, total: items.length });
     showItem();
   } catch (e) { alert(e.message); }
 }
@@ -92,30 +94,19 @@ function optionList(container, options, type, name) {
 async function showItem() {
   const it = state.items[state.pos];
   show("task");
-  const audio = state.mode === "audio";
-  $("t-mode").textContent = audio ? "Audio" : "Text";
   $("t-pos").textContent = `Item ${state.pos + 1} of ${state.total}`;
   $("t-bar").style.width = `${(100 * state.pos) / state.total}%`;
-  $("t-audio-block").hidden = !audio;
-  $("t-text-block").hidden = audio;
-  $("q-sounds").hidden = !audio;
-  $("q2-num").textContent = audio ? "2" : "1";
-  $("q3-num").textContent = audio ? "3" : "2";
   $("t-msg").textContent = "";
   $("t-none").checked = false;
-  state.played = !audio;
-  if (audio) {
-    optionList($("t-sounds"), it.sound_options, "checkbox", "sound");
-    const player = $("t-audio");
-    player.removeAttribute("src");
-    busy(true);
-    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(it.audio_path, 3600);
-    busy(false);
-    if (error) { $("t-msg").textContent = "Could not load the audio: " + error.message; }
-    else { player.src = data.signedUrl; player.load(); }
-  } else {
-    $("t-situation").textContent = it.situation;
-  }
+  state.played = false;
+  optionList($("t-sounds"), it.sound_options, "checkbox", "sound");
+  const player = $("t-audio");
+  player.removeAttribute("src");
+  busy(true);
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(it.audio_path, 3600);
+  busy(false);
+  if (error) { $("t-msg").textContent = "Could not load the audio: " + error.message; }
+  else { player.src = data.signedUrl; player.load(); }
   optionList($("t-replies"), it.reply_options, "radio", "reply");
   optionList($("t-delivery"), it.delivery_options, "radio", "delivery");
   state.started = performance.now();
@@ -131,8 +122,7 @@ function picked(name) { return [...document.querySelectorAll(`input[name=${name}
 function refresh() {
   if (picked("sound").length) $("t-none").checked = false;
   document.querySelectorAll(".opt").forEach((l) => l.classList.toggle("checked", l.querySelector("input").checked));
-  const audio = state.mode === "audio";
-  const soundsOk = !audio || picked("sound").length > 0 || $("t-none").checked;
+  const soundsOk = picked("sound").length > 0 || $("t-none").checked;
   const ok = state.played && soundsOk && picked("reply").length === 1 && picked("delivery").length === 1;
   $("btn-submit").disabled = !ok;
   $("t-audio-hint").hidden = state.played;
@@ -143,8 +133,8 @@ $("btn-submit").onclick = async () => {
   $("btn-submit").disabled = true;
   try {
     await rpc("submit_answer", {
-      p_username: state.user, p_item_id: it.item_id, p_mode: state.mode,
-      p_sounds: state.mode === "audio" ? picked("sound") : [], p_none: state.mode === "audio" && $("t-none").checked,
+      p_username: state.user, p_item_id: it.item_id, p_mode: MODE,
+      p_sounds: picked("sound"), p_none: $("t-none").checked,
       p_reply: picked("reply")[0], p_delivery: picked("delivery")[0],
       p_seconds: Math.round((performance.now() - state.started) / 100) / 10,
     });
@@ -152,8 +142,8 @@ $("btn-submit").onclick = async () => {
     state.pos += 1;
     if (state.pos < state.total) showItem();
     else {
-      $("done-msg").textContent = `You finished ${state.total} ${state.mode} items.`;
-      $("btn-next").textContent = `Next ${state.mode} batch (${BATCH})`;
+      $("done-msg").textContent = `You finished ${state.total} items.`;
+      $("btn-next").textContent = `Next batch (${BATCH})`;
       show("done");
     }
   } catch (e) { $("t-msg").textContent = e.message; refresh(); }
@@ -172,12 +162,12 @@ function table(rows, cols) {
 function card(title, html, note) {
   return `<div class="card"><h2>${esc(title)}</h2>${note ? `<p class="hint">${note}</p>` : ""}${html}</div>`;
 }
-function confusion(rows, mode, policy) {
-  const sel = rows.filter((r) => r.mode === mode && r.policy === policy);
+function confusion(rows, policy) {
+  const sel = rows.filter((r) => r.policy === policy);
   if (!sel.length) return "";
   const truths = [...new Set(sel.map((r) => r.truth))].sort(), chosen = [...new Set(sel.map((r) => r.chosen))].sort();
   const cell = (t, c) => (sel.find((r) => r.truth === t && r.chosen === c) || {}).n || 0;
-  return `<h3>${esc(policy)} (${mode})</h3><div class="tbl-wrap"><table><thead><tr><th>truth \\ chosen</th>` +
+  return `<h3>${esc(policy)}</h3><div class="tbl-wrap"><table><thead><tr><th>truth \\ chosen</th>` +
     chosen.map((c) => `<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
     truths.map((t) => `<tr><td>${esc(t)}</td>` + chosen.map((c) => `<td class="num ${t === c ? "good" : ""}">${cell(t, c)}</td>`).join("") + "</tr>").join("") +
     "</tbody></table></div>";
@@ -191,20 +181,20 @@ async function openAdmin() {
   try { s = await rpc("admin_stats", { p_password: state.admin }); } catch (e) { $("tab-overview").innerHTML = card("Error", esc(e.message)); return; }
   const c = s.coverage || {};
   $("admin-coverage").innerHTML = [
-    [c.annotators, "annotators"], [c.items, "items"], [c.audio_items, "items with an audio answer"],
-    [c.text_items, "items with a text answer"], [c.both_modes, "items with both"],
+    [c.annotators, "annotators"], [c.items, "items"], [c.audio_items, "items with an answer"],
   ].map(([v, l]) => `<div><b>${v ?? 0}</b><span>${l}</span></div>`).join("");
   const conf = s.confusion || [];
-  const policies = ["initiative", "verbosity", "addressee", "risk", "disclosure"];
+  const policies = ["initiative", "verbosity", "addressee", "risk", "disclosure"].filter((p) => !HIDDEN.includes(p));
+  const hiddenNote = HIDDEN.length ? ` Hidden for now: ${HIDDEN.join(", ")} (its reply options and items are not handed out, and it is left out here).` : "";
   $("tab-overview").innerHTML =
-    card("Overall", table(s.overall, [["mode", "mode"], ["answers", "answers"], ["annotators", "annotators"], ["items", "items"],
+    card("Overall", table(s.overall, [["answers", "answers"], ["annotators", "annotators"], ["items", "items"],
       ["reply_exact", "reply = benchmark"], ["delivery_acc", "delivery = benchmark"], ["mean_seconds", "sec / item"]]),
-      "reply = benchmark: the chosen reply is the one the benchmark labels ask for (all five policies right).") +
-    card("Per policy", table(s.per_policy, [["mode", "mode"], ["policy", "policy"], ["answers", "answers"], ["accuracy", "agrees with benchmark"]])) +
+      "reply = benchmark: the chosen reply is the one the benchmark labels ask for (every policy right)." + hiddenNote) +
+    card("Per policy", table(s.per_policy, [["policy", "policy"], ["answers", "answers"], ["accuracy", "agrees with benchmark"]])) +
     "";
   $("tab-details").innerHTML =
-    card("Per level", table(s.per_level, [["mode", "mode"], ["policy", "policy"], ["level", "true level"], ["answers", "answers"], ["accuracy", "chosen = true"]]),
-      "The non-default levels (Notify, Interrupt, Brief, Yield, Confirm, Caution, Discreet) are the ones that test context use.") +
+    card("Per level", table(s.per_level, [["policy", "policy"], ["level", "true level"], ["answers", "answers"], ["accuracy", "chosen = true"]]),
+      "The non-default levels (Notify, Interrupt, Brief, Yield, Confirm, Discreet) are the ones that test context use.") +
     "";
   $("tab-overview").innerHTML +=
     card("Perception (audio)", table(s.sound ? [s.sound] : [], [["answers", "answers"], ["critical_recall", "key sounds recognised"],
@@ -213,15 +203,11 @@ async function openAdmin() {
   $("tab-details").innerHTML +=
     card("Key sounds by class", table(s.sound_by_class, [["klass", "sound class"], ["heard_of", "answers"], ["recognised", "recognised"]])) +
     "";
-  $("tab-overview").innerHTML +=
-    card("Audio vs text (same item, different people)", table(s.consistency, [["policy", "policy"], ["items", "items"], ["agreement", "same level chosen"]]),
-      "Most-chosen reply per item in each mode; do people behave the same when they hear the scene and when they read it?") +
-    "";
   $("tab-details").innerHTML +=
-    card("Confusion", policies.map((p) => confusion(conf, "audio", p) + confusion(conf, "text", p)).join("") +
-      "<h3>delivery</h3>" + table(s.delivery_confusion, [["mode", "mode"], ["truth", "truth"], ["chosen", "chosen"], ["n", "n"]])) +
-    card("By section", table(s.by_section, [["mode", "mode"], ["section", "section"], ["answers", "answers"], ["reply_exact", "reply = benchmark"], ["delivery_acc", "delivery"]])) +
-    card("By annotator", table(s.by_user, [["username", "user"], ["mode", "mode"], ["answers", "answers"], ["reply_exact", "reply = benchmark"],
+    card("Confusion", policies.map((p) => confusion(conf, p)).join("") +
+      "<h3>delivery</h3>" + table(s.delivery_confusion, [["truth", "truth"], ["chosen", "chosen"], ["n", "n"]])) +
+    card("By section", table(s.by_section, [["section", "section"], ["answers", "answers"], ["reply_exact", "reply = benchmark"], ["delivery_acc", "delivery"]])) +
+    card("By annotator", table(s.by_user, [["username", "user"], ["answers", "answers"], ["reply_exact", "reply = benchmark"],
       ["delivery_acc", "delivery"], ["mean_seconds", "sec / item"]]));
 }
 // --- contested scenarios + label editing -----------------------------------------------------------
@@ -229,13 +215,13 @@ const LEVELS = {
   initiative: ["Normal", "Notify", "Interrupt"], verbosity: ["Normal", "Brief"], delivery: ["Normal", "Quiet", "Loud"],
   addressee: ["Respond", "Confirm", "Yield"], risk: ["Normal", "Caution"], disclosure: ["Full", "Discreet"],
 };
-const POLICIES = Object.keys(LEVELS);
+const POLICIES = Object.keys(LEVELS).filter((p) => !HIDDEN.includes(p));   // shown / editable
 
 async function loadContested() {
   let rows;
   try { rows = await rpc("admin_contested", { p_password: state.admin }); } catch (e) { $("admin-contested").innerHTML = `<p class="msg">${esc(e.message)}</p>`; return; }
   if (!rows.length) { $("admin-contested").innerHTML = "<p class='hint'>No answers yet.</p>"; return; }
-  const head = "<tr><th>scenario</th><th>answers (audio/text)</th>" + POLICIES.map((p) => `<th>${p}</th>`).join("") + "<th></th></tr>";
+  const head = "<tr><th>scenario</th><th>answers</th>" + POLICIES.map((p) => `<th>${p}</th>`).join("") + "<th></th></tr>";
   const body = rows.map((r) => {
     const cells = POLICIES.map((p) => {
       const x = r.policies[p] || {};
@@ -244,7 +230,7 @@ async function loadContested() {
         (x.disagree > 0 ? ` <small>(${Math.round(100 * x.disagree)}% -> ${esc(x.human)})</small>` : "") + "</td>";
     }).join("");
     return `<tr class="${r.override ? "changed" : ""}"><td><b>${esc(r.bench_id)}</b><br><small>${esc(r.section)}</small>` +
-      (r.override ? "<br><small>edited</small>" : "") + `</td><td class="num">${r.answers} (${r.audio}/${r.text})</td>${cells}` +
+      (r.override ? "<br><small>edited</small>" : "") + `</td><td class="num">${r.answers}</td>${cells}` +
       `<td><button class="secondary" data-edit="${esc(r.bench_id)}">Edit labels</button> ` +
       `<button class="link" data-explore="${esc(r.bench_id)}">Answers</button></td></tr>`;
   }).join("");
@@ -280,7 +266,7 @@ async function openEdit(benchId) {
   $("edit-close").onclick = closeEdit;
   wireListen($("edit-box"));
   $("edit-save").onclick = async () => {
-    const labels = {};
+    const labels = { ...sc.labels };            // hidden policies keep their current level
     document.querySelectorAll("#edit-box select").forEach((s) => (labels[s.dataset.pol] = s.value));
     try {
       await rpc("admin_set_label", { p_password: state.admin, p_bench_id: benchId, p_labels: labels, p_note: $("edit-note").value });
@@ -335,9 +321,7 @@ async function explore(filter) {
   $("explorer").innerHTML = `<p class="hint">${rows.length} answers on ${Object.keys(bySample).length} samples.</p>` +
     Object.entries(bySample).map(([sid, ans]) => {
       const truth = ans[0].labels;
-      const majority = ["audio", "text"].map((mode) => {
-        const m = ans.filter((a) => a.mode === mode);
-        if (!m.length) return "";
+      const majority = ((m) => {       // the reply most people chose
         const count = {};
         m.forEach((a) => (count[a.reply_key] = (count[a.reply_key] || 0) + 1));
         const [key, n] = Object.entries(count).sort((x, y) => y[1] - x[1])[0];
@@ -346,20 +330,20 @@ async function explore(filter) {
         m.forEach((a) => (dcount[a.delivery] = (dcount[a.delivery] || 0) + 1));
         const [dkey, dn] = Object.entries(dcount).sort((x, y) => y[1] - x[1])[0];
         const missed = m.filter((a) => a.missed_key && a.missed_key.length).length;
-        return `<div><b>${mode}</b>: ${m.length} answer(s); most chose ${key === top.best_reply ? "<span class='good'>the benchmark reply</span>" : "<span class='bad'>another reply</span>"}
+        return `<div>${m.length} answer(s); most chose ${key === top.best_reply ? "<span class='good'>the benchmark reply</span>" : "<span class='bad'>another reply</span>"}
           (${n}/${m.length}) ${tags(top.reply_labels, truth)} delivery ${esc(dkey)} (${dn}/${m.length})` +
-          (mode === "audio" ? ` - key sound missed by ${missed}/${m.length}` : "") +
+          ` - key sound missed by ${missed}/${m.length}` +
           `<br><small>"${esc(top.reply_text)}"</small></div>`;
-      }).join("");
+      })(ans);
       const list = table(ans.map((a) => ({
-        user: a.username, mode: a.mode, reply: `${a.reply_key}${a.reply_key === a.best_reply ? " *" : ""}`,
+        user: a.username, reply: `${a.reply_key}${a.reply_key === a.best_reply ? " *" : ""}`,
         labels: POLICIES.map((p) => (a.reply_labels || {})[p]).filter(Boolean).join("/"),
-        delivery: a.delivery, heard: a.mode === "audio" ? (a.none_heard ? "(none)" : (a.heard || []).join("; ")) : "-",
+        delivery: a.delivery, heard: a.none_heard ? "(none)" : (a.heard || []).join("; "),
         missed: (a.missed_key || []).join("; ") || "-", sec: a.seconds, audio: a.current_audio ? "current" : "OLD",
-      })), [["user", "user"], ["mode", "mode"], ["reply", "reply (* = benchmark)"], ["labels", "reply means"],
+      })), [["user", "user"], ["reply", "reply (* = benchmark)"], ["labels", "reply means"],
             ["delivery", "delivery"], ["heard", "ticked sounds"], ["missed", "key sound missed"], ["sec", "sec"], ["audio", "audio"]]);
       return `<div class="sample"><b>${esc(sid)}</b> <small>${esc(ans[0].section)}</small> ${listenButton(ans[0].audio_path)}
-        <details><summary>situation (text version)</summary><p class="situation">${esc(ans[0].situation)}</p></details>
+        <details><summary>scene description</summary><p class="situation">${esc(ans[0].situation)}</p></details>
         <div>benchmark: ${tags(truth)} delivery <span class="tag">${esc(truth.delivery)}</span></div>${majority}${list}</div>`;
     }).join("");
   wireListen($("explorer"));

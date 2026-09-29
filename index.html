@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AAC-Bench listening study</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
 </head>
@@ -40,23 +40,19 @@
   <section id="view-home" class="card" hidden>
     <h1>Your progress</h1>
     <div class="stats">
-      <div><b id="p-audio">0</b><span>audio items done</span></div>
-      <div><b id="p-text">0</b><span>text items done</span></div>
+      <div><b id="p-audio">0</b><span>items done</span></div>
       <div><b id="p-total">0</b><span>items in the study</span></div>
     </div>
     <p>A batch is 20 items picked for you. You can stop any time; an unfinished batch is kept for you.</p>
     <div class="row">
       <button id="btn-audio">Audio batch</button>
-      <button id="btn-text" class="secondary">Text batch</button>
     </div>
     <details>
       <summary>How it works</summary>
       <ul>
-        <li><b>Audio batch</b>: play the recording (headphones help). Someone - "the user" - asks a voice assistant
-          something while things happen around them. Tick every sound you can hear, then choose the reply that
-          would be most appropriate, and how loudly it should be spoken.</li>
-        <li><b>Text batch</b>: the same kind of situation is described in words instead. Choose the reply and the
-          volume as if you were the assistant.</li>
+        <li>Play the recording (headphones help). Someone - "the user" - asks a voice assistant something while
+          things happen around them. Tick every sound you can hear, then choose the reply that would be most
+          appropriate, and how loudly it should be spoken.</li>
         <li>There is no trick: pick what a thoughtful assistant should really do in that moment. "Say nothing" is a
           valid choice.</li>
       </ul>
@@ -66,7 +62,6 @@
   <!-- Task -->
   <section id="view-task" class="card" hidden>
     <div class="task-head">
-      <span id="t-mode" class="pill"></span>
       <span id="t-pos"></span>
       <div class="bar"><div id="t-bar"></div></div>
     </div>
@@ -74,10 +69,6 @@
     <div id="t-audio-block">
       <audio id="t-audio" controls preload="auto"></audio>
       <p class="hint" id="t-audio-hint">Play the recording (at least once) before answering. You can replay it.</p>
-    </div>
-    <div id="t-text-block" hidden>
-      <h2>Situation</h2>
-      <p id="t-situation" class="situation"></p>
     </div>
 
     <div id="q-sounds" class="q">
@@ -87,12 +78,12 @@
     </div>
 
     <div class="q">
-      <h2><span id="q2-num">2</span>. You are the voice assistant. Which reply is the most appropriate right now?</h2>
+      <h2>2. You are the voice assistant. Which reply is the most appropriate right now?</h2>
       <div id="t-replies" class="options"></div>
     </div>
 
     <div class="q">
-      <h2><span id="q3-num">3</span>. How should the assistant say its reply?</h2>
+      <h2>3. How should the assistant say its reply?</h2>
       <div id="t-delivery" class="options inline"></div>
     </div>
 
@@ -153,7 +144,7 @@
           <button id="btn-explore" class="secondary">Show</button>
         </div>
       </div>
-      <p class="hint">Who answered what, per sample: the reply most people chose (per mode) against the benchmark label,
+      <p class="hint">Who answered what, per sample: the reply most people chose against the benchmark label,
         then every answer. Leave empty for all.</p>
       <div id="explorer"></div>
     </div>
@@ -163,6 +154,6 @@
 </main>
 
 <div id="loading" hidden>Loading...</div>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

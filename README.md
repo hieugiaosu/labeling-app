@@ -3,15 +3,18 @@
 Trang tĩnh (HTML + JS, không build) cho người label, đọc/ghi thẳng Supabase. Giao diện tiếng Anh.
 
 - Nhập username → **Register new** (lần đầu) hoặc **Log in** (làm tiếp). Không có mật khẩu.
-- Trang chủ: đã làm bao nhiêu câu (audio / text), nút **Audio batch** / **Text batch** (20 câu/batch; batch dở được giữ).
+- Trang chủ: đã làm bao nhiêu câu, nút **Audio batch** (20 câu/batch; batch dở được giữ). Chế độ text đã bỏ
+  (đáp án text cũ xoá bằng `bash reset_labels.sh --mode text --yes`).
 - Mỗi câu audio: nghe → (1) tick các âm nghe thấy (A-E, nhiều đáp án, hoặc *None of these*) → (2) chọn câu trả lời
   hợp lý nhất (các câu do LLM viết theo tổ hợp initiative / verbosity / addressee / risk / disclosure, có cả
   *Say nothing*) → (3) chọn cách nói: nhỏ / bình thường / to.
-- Câu text: đọc mô tả tình huống (người dùng nói gì, có gì xảy ra) → (1) câu trả lời → (2) cách nói.
+- **Risk đang tạm ẩn**: câu trả lời có Caution không hiện, mẫu có nhãn Caution (RSK-*) không được giao, trang admin
+  bỏ cột risk; đáp án cũ vẫn giữ. Bật lại: bỏ `'risk'` khỏi `_hidden_policies()` trong
+  `pipeline/supabase/label_app.sql` (chạy lại file) và khỏi `HIDDEN` trong `app.js`.
 - Batch chia theo độ phủ: câu ít người làm nhất được giao trước (ngẫu nhiên khi ngang nhau), mỗi người một bộ
-  khác nhau, và một người không bao giờ gặp lại cùng câu ở chế độ kia.
+  khác nhau, và một người không gặp lại câu đã làm.
 - **Admin** (mục *Admin* dưới form đăng nhập, cần mật khẩu admin): trang thống kê: độ phủ, độ khớp với nhãn benchmark theo từng policy / level, ma trận nhầm lẫn,
-  nhận diện âm (key sounds), audio vs text trên cùng câu, theo section, theo người; tải CSV toàn bộ đáp án.
+  nhận diện âm (key sounds), theo section, theo người; tải CSV toàn bộ đáp án.
 
 - Trang admin > **Contested scenarios**: theo từng kịch bản và policy, % người chọn khác nhãn benchmark và mức họ
   chọn nhiều nhất (đỏ = đa số không đồng ý). **Edit labels** sửa nhãn cả kịch bản (mọi biến thể), thống kê đổi ngay;
