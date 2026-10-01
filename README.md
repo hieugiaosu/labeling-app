@@ -5,7 +5,10 @@ Trang tĩnh (HTML + JS, không build) cho người label, đọc/ghi thẳng Sup
 - Nhập username → **Register new** (lần đầu) hoặc **Log in** (làm tiếp). Không có mật khẩu.
 - Trang chủ: đã làm bao nhiêu câu, nút **Audio batch** (20 câu/batch; batch dở được giữ). Chế độ text đã bỏ
   (đáp án text cũ xoá bằng `bash reset_labels.sh --mode text --yes`).
-- Mỗi câu audio: nghe → (1) tick các âm nghe thấy (A-E, nhiều đáp án, hoặc *None of these*) → (2) chọn câu trả lời
+- Mỗi câu audio: nghe → (1) bài nghe **giống hệt bài perception của model** (benchmark-run/data/probes.jsonl): mỗi âm key
+  một câu A-E chọn một (E = không có), thêm một câu bẫy, cùng option và cách viết như model nghe mixture; người trả lời
+  mỗi câu một lần (model 4 lần, xoay vị trí). Ghi bằng `python tools/sync_sound_trials.py` (pipeline/), sau khi chạy lại
+  `supabase/label_app.sql`; đáp án chọn nhiều cũ được quy đổi (`sound_derived`) → (2) chọn câu trả lời
   hợp lý nhất (các câu do LLM viết theo tổ hợp initiative / verbosity / addressee / risk / disclosure, có cả
   *Say nothing*) → (3) chọn cách nói: nhỏ / bình thường / to.
 - **Risk đang tạm ẩn**: câu trả lời có Caution không hiện, mẫu có nhãn Caution (RSK-*) không được giao, trang admin

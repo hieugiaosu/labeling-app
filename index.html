@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AAC-Bench listening study</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
 </head>
@@ -51,7 +51,7 @@
       <summary>How it works</summary>
       <ul>
         <li>Play the recording (headphones help). Someone - "the user" - asks a voice assistant something while
-          things happen around them. Tick every sound you can hear, then choose the reply that would be most
+          things happen around them. Say which sounds you can hear (one short question per sound), then choose the reply that would be most
           appropriate, and how loudly it should be spoken.</li>
         <li>There is no trick: pick what a thoughtful assistant should really do in that moment. "Say nothing" is a
           valid choice.</li>
@@ -72,9 +72,11 @@
     </div>
 
     <div id="q-sounds" class="q">
-      <h2>1. Which of these can you hear? <small>(tick all that apply)</small></h2>
-      <div id="t-sounds" class="options"></div>
-      <label class="opt none"><input type="checkbox" id="t-none"> <span>None of these</span></label>
+      <h2>1. Which of these sounds can be heard in the recording?</h2>
+      <p class="hint">In each question at most one of A-D is in the recording; choose E if you hear none of them.
+        Listen to the whole recording, including quiet, brief or far-away sounds. Answer from what you hear, not from
+        what would be likely in such a place.</p>
+      <div id="t-sounds"></div>
     </div>
 
     <div class="q">
@@ -154,6 +156,6 @@
 </main>
 
 <div id="loading" hidden>Loading...</div>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

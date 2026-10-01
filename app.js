@@ -84,10 +84,10 @@ async function startBatch() {
 }
 
 // --- one item -------------------------------------------------------------------------------------
-function optionList(container, options, type, name) {
+function optionList(container, options, type, name, letters) {
   container.innerHTML = options.map((o) => `
     <label class="opt"><input type="${type}" name="${name}" value="${esc(o.key)}">
-      ${type === "checkbox" ? `<span class="key">${esc(o.key)}</span>` : ""}<span>${esc(o.text)}</span></label>`).join("");
+      ${letters ? `<span class="key">${esc(o.key)}</span>` : ""}<span>${esc(o.text)}</span></label>`).join("");
   container.querySelectorAll("input").forEach((i) => i.addEventListener("change", refresh));
 }
 
@@ -97,9 +97,12 @@ async function showItem() {
   $("t-pos").textContent = `Item ${state.pos + 1} of ${state.total}`;
   $("t-bar").style.width = `${(100 * state.pos) / state.total}%`;
   $("t-msg").textContent = "";
-  $("t-none").checked = false;
   state.played = false;
-  optionList($("t-sounds"), it.sound_options, "checkbox", "sound");
+  // the benchmark's own listening test: one single-choice question per key sound + a catch question
+  const trials = it.sound_trials || [];
+  $("t-sounds").innerHTML = trials.map((q, i) =>
+    `<div class="subq"><h3>${trials.length > 1 ? `Question ${i + 1} of ${trials.length}` : ""}</h3><div class="options" id="t-snd-${i}"></div></div>`).join("");
+  trials.forEach((q, i) => optionList($("t-snd-" + i), q.options, "radio", "snd-" + i, true));
   const player = $("t-audio");
   player.removeAttribute("src");
   busy(true);
@@ -113,16 +116,17 @@ async function showItem() {
   refresh();
 }
 $("t-audio").addEventListener("play", () => { state.played = true; refresh(); });
-$("t-none").addEventListener("change", () => {
-  if ($("t-none").checked) document.querySelectorAll("input[name=sound]").forEach((i) => (i.checked = false));
-  refresh();
-});
 
 function picked(name) { return [...document.querySelectorAll(`input[name=${name}]:checked`)].map((i) => i.value); }
+function soundAnswers() {
+  const it = state.items[state.pos], out = {};
+  (it.sound_trials || []).forEach((q, i) => { const p = picked("snd-" + i); if (p.length) out[q.id] = p[0]; });
+  return out;
+}
 function refresh() {
-  if (picked("sound").length) $("t-none").checked = false;
   document.querySelectorAll(".opt").forEach((l) => l.classList.toggle("checked", l.querySelector("input").checked));
-  const soundsOk = picked("sound").length > 0 || $("t-none").checked;
+  const it = state.items[state.pos];
+  const soundsOk = Object.keys(soundAnswers()).length === (it.sound_trials || []).length;
   const ok = state.played && soundsOk && picked("reply").length === 1 && picked("delivery").length === 1;
   $("btn-submit").disabled = !ok;
   $("t-audio-hint").hidden = state.played;
@@ -134,7 +138,7 @@ $("btn-submit").onclick = async () => {
   try {
     await rpc("submit_answer", {
       p_username: state.user, p_item_id: it.item_id, p_mode: MODE,
-      p_sounds: picked("sound"), p_none: $("t-none").checked,
+      p_sound_answers: soundAnswers(),
       p_reply: picked("reply")[0], p_delivery: picked("delivery")[0],
       p_seconds: Math.round((performance.now() - state.started) / 100) / 10,
     });
@@ -194,11 +198,14 @@ async function openAdmin() {
     "";
   $("tab-details").innerHTML =
     card("Per level", table(s.per_level, [["policy", "policy"], ["level", "true level"], ["answers", "answers"], ["accuracy", "chosen = true"]]),
-      "The non-default levels (Notify, Interrupt, Brief, Yield, Confirm, Discreet) are the ones that test context use.") +
+      "The non-default levels (Notify, Interrupt, Brief, Quiet, Loud, Yield, Confirm, Discreet) are the ones that test context use.") +
     "";
   $("tab-overview").innerHTML +=
-    card("Perception (audio)", table(s.sound ? [s.sound] : [], [["answers", "answers"], ["critical_recall", "key sounds recognised"],
-      ["any_true_recall", "all present sounds recognised"], ["false_alarm_rate", "absent sounds ticked"], ["none_correct", "'none' right when nothing to hear"]])) +
+    card("Perception (audio)", table(s.sound ? [s.sound] : [], [["answers", "answers"], ["derived", "converted from old answers"],
+      ["key_questions", "key questions"], ["key_recognised", "key sound recognised"], ["all_keys_heard", "all key sounds of the item"],
+      ["catch_questions", "catch questions"], ["catch_correct", "'none' right on catch"]]),
+      "The same listening test as the models (benchmark perception, mixture). A person answers each question once; a model 4 times, key rotated over A-D. " +
+      "Converted answers: from the old tick-all question - key ticked = recognised, not ticked = E; catch questions only where an absent sound was ticked.") +
     "";
   $("tab-details").innerHTML +=
     card("Key sounds by class", table(s.sound_by_class, [["klass", "sound class"], ["heard_of", "answers"], ["recognised", "recognised"]])) +
@@ -338,10 +345,10 @@ async function explore(filter) {
       const list = table(ans.map((a) => ({
         user: a.username, reply: `${a.reply_key}${a.reply_key === a.best_reply ? " *" : ""}`,
         labels: POLICIES.map((p) => (a.reply_labels || {})[p]).filter(Boolean).join("/"),
-        delivery: a.delivery, heard: a.none_heard ? "(none)" : (a.heard || []).join("; "),
-        missed: (a.missed_key || []).join("; ") || "-", sec: a.seconds, audio: a.current_audio ? "current" : "OLD",
+        delivery: a.delivery, heard: (a.heard || []).join("; ") || "(none)",
+        missed: (a.missed_key || []).join("; ") || "-", sec: a.seconds, conv: a.sound_derived ? "yes" : "", audio: a.current_audio ? "current" : "OLD",
       })), [["user", "user"], ["reply", "reply (* = benchmark)"], ["labels", "reply means"],
-            ["delivery", "delivery"], ["heard", "ticked sounds"], ["missed", "key sound missed"], ["sec", "sec"], ["audio", "audio"]]);
+            ["delivery", "delivery"], ["heard", "sounds chosen"], ["missed", "key sound missed"], ["conv", "converted"], ["sec", "sec"], ["audio", "audio"]]);
       return `<div class="sample"><b>${esc(sid)}</b> <small>${esc(ans[0].section)}</small> ${listenButton(ans[0].audio_path)}
         <details><summary>scene description</summary><p class="situation">${esc(ans[0].situation)}</p></details>
         <div>benchmark: ${tags(truth)} delivery <span class="tag">${esc(truth.delivery)}</span></div>${majority}${list}</div>`;
@@ -361,6 +368,7 @@ $("btn-export").onclick = async () => {
   const flat = rows.map((r) => ({
     ...r, reply_labels: JSON.stringify(r.reply_labels), truth: JSON.stringify(r.truth), sounds: JSON.stringify(r.sounds),
     sound_true: JSON.stringify(r.sound_true), sound_critical: JSON.stringify(r.sound_critical),
+    sound_answers: JSON.stringify(r.sound_answers), sound_trials: JSON.stringify(r.sound_trials),
   }));
   const cols = Object.keys(flat[0]);
   const csv = [cols.join(",")].concat(flat.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))).join("\n");
