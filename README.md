@@ -11,12 +11,16 @@ Trang tĩnh (HTML + JS, không build) cho người label, đọc/ghi thẳng Sup
   `supabase/label_app.sql`; đáp án chọn nhiều cũ được quy đổi (`sound_derived`) → (2) chọn câu trả lời
   hợp lý nhất (các câu do LLM viết theo tổ hợp initiative / verbosity / addressee / risk / disclosure, có cả
   *Say nothing*) → (3) chọn cách nói: nhỏ / bình thường / to.
-- **Risk đang tạm ẩn**: câu trả lời có Caution không hiện, mẫu có nhãn Caution (RSK-*) không được giao, trang admin
-  bỏ cột risk; đáp án cũ vẫn giữ. Bật lại: bỏ `'risk'` khỏi `_hidden_policies()` trong
+- **Risk đã bỏ khỏi benchmark**: câu trả lời có Caution không hiện, trang admin bỏ cột risk. Mẫu có nhãn Caution
+  (RSK-*) vẫn được giao và tính như mẫu thường, chấm trên 5 policy còn lại: mỗi mẫu đều có một reply khớp các
+  policy kia (`best_reply` trỏ tới nó). Bật lại risk: bỏ `'risk'` khỏi `_hidden_policies()` trong
   `pipeline/supabase/label_app.sql` (chạy lại file) và khỏi `HIDDEN` trong `app.js`.
-- Batch chia theo độ phủ: câu ít người làm nhất được giao trước (ngẫu nhiên khi ngang nhau), mỗi người một bộ
-  khác nhau, và một người không gặp lại câu đã làm.
-- **Admin** (mục *Admin* dưới form đăng nhập, cần mật khẩu admin): trang thống kê: độ phủ, độ khớp với nhãn benchmark theo từng policy / level, ma trận nhầm lẫn,
+- Batch ưu tiên làm đủ người: câu đã có người làm nhưng chưa đủ 3 người (`_target_labels()`, tính cả slot đang
+  làm trong 1 ngày) luôn được giao trước. Chỉ khi một người đã nhận hết những câu đó (trừ câu mình đã làm) thì
+  phần còn lại của batch mới lấy câu chưa ai làm; khi mọi câu đủ 3 người mới giao thêm người thứ 4. Trong mỗi nhóm
+  ngẫu nhiên, xoay vòng theo section; một người không gặp lại câu đã làm. Đổi số người: sửa `_target_labels()`
+  trong `pipeline/supabase/label_app.sql` rồi chạy lại file.
+- **Admin** (mục *Admin* dưới form đăng nhập, cần mật khẩu admin): trang thống kê: độ phủ, đồng thuận theo mẫu (đa số chọn đúng nhãn / ít nhất 1 người chọn đúng nhãn), độ khớp với nhãn benchmark theo từng policy / level, ma trận nhầm lẫn,
   nhận diện âm (key sounds), theo section, theo người; tải CSV toàn bộ đáp án.
 
 - Trang admin > **Contested scenarios**: theo từng kịch bản và policy, % người chọn khác nhãn benchmark và mức họ

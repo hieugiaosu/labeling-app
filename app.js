@@ -189,11 +189,20 @@ async function openAdmin() {
   ].map(([v, l]) => `<div><b>${v ?? 0}</b><span>${l}</span></div>`).join("");
   const conf = s.confusion || [];
   const policies = ["initiative", "verbosity", "addressee", "risk", "disclosure"].filter((p) => !HIDDEN.includes(p));
-  const hiddenNote = HIDDEN.length ? ` Hidden for now: ${HIDDEN.join(", ")} (its reply options and items are not handed out, and it is left out here).` : "";
+  const hiddenNote = HIDDEN.length ? ` Hidden for now: ${HIDDEN.join(", ")} (its reply options are not shown and it is left out here; items labelled with it count like any other, on the other policies).` : "";
   $("tab-overview").innerHTML =
     card("Overall", table(s.overall, [["answers", "answers"], ["annotators", "annotators"], ["items", "items"],
       ["reply_exact", "reply = benchmark"], ["delivery_acc", "delivery = benchmark"], ["mean_seconds", "sec / item"]]),
       "reply = benchmark: the chosen reply is the one the benchmark labels ask for (every policy right)." + hiddenNote) +
+    card("Consensus per item", table(s.consensus, [["scope", "items"], ["policy", "policy"], ["items", "n"],
+      ["majority", "majority = label"], ["no_majority", "no majority (tie)"], ["at_least_one", "≥ 1 person = label"],
+      ["everyone", "everyone = label"], ["action_items", "n (label not default)"], ["action_majority", "majority = label"],
+      ["action_at_least_one", "≥ 1 person = label"]]),
+      "All answers of an item together. majority = label: more than half of its answers chose the label's level (an item " +
+      "with one answer: that answer); a tie is not a majority. ≥ 1 person = label: at least one person handled it like the " +
+      "label. all policies: majority - every policy's majority is the label; ≥ 1 person - one person got every policy right " +
+      "in the same answer. The last three columns: only items whose label for that policy is not the default (Notify, Brief, " +
+      "Loud, Yield, Discreet...).") +
     card("Per policy", table(s.per_policy, [["policy", "policy"], ["answers", "answers"], ["accuracy", "agrees with benchmark"]])) +
     "";
   $("tab-details").innerHTML =
