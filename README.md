@@ -3,7 +3,7 @@
 Trang tĩnh (HTML + JS, không build) cho người label, đọc/ghi thẳng Supabase. Giao diện tiếng Anh.
 
 - Nhập username → **Register new** (lần đầu) hoặc **Log in** (làm tiếp). Không có mật khẩu.
-- Trang chủ: đã làm bao nhiêu câu, nút **Audio batch** (20 câu/batch; batch dở được giữ). Chế độ text đã bỏ
+- Trang chủ: đã làm bao nhiêu câu, nút **Audio batch** (50 câu/batch, `batchSize` trong config.js; batch dở được giữ). Chế độ text đã bỏ
   (đáp án text cũ xoá bằng `bash reset_labels.sh --mode text --yes`).
 - Mỗi câu audio: nghe → (1) bài nghe **giống hệt bài perception của model** (benchmark-run/data/probes.jsonl): mỗi âm key
   một câu A-E chọn một (E = không có), thêm một câu bẫy, cùng option và cách viết như model nghe mixture; người trả lời

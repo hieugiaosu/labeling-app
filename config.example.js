@@ -4,5 +4,5 @@ window.AAC_CONFIG = {
   supabaseUrl: "https://<project>.supabase.co",
   supabaseKey: "sb_publishable_...",
   bucket: "aac-bench-audio",
-  batchSize: 20,
+  batchSize: 50,
 };

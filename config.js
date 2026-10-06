@@ -4,5 +4,5 @@ window.AAC_CONFIG = {
   supabaseUrl: "https://qmrqnwzymrxaxtkefbkp.supabase.co",
   supabaseKey: "sb_publishable_DoyFtWBBOH39qbkqNdYDLw_bOexzN8p",
   bucket: "aac-bench-audio",
-  batchSize: 20,
+  batchSize: 50,
 };
